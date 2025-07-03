@@ -39,7 +39,8 @@ const RechnungsGenerator = () => {
     // Passwort-Schutz
     const pass = prompt("Passwort eingeben:");
     if (pass !== "Teufeline2028!!!") {
-      window.location.href = "/";
+      alert("Falsches Passwort!");
+      window.history.back(); // Zurück zur vorherigen Seite statt zur Startseite
       return;
     }
 
@@ -321,8 +322,13 @@ const RechnungsGenerator = () => {
   };
 
   const fillClientFromSelect = (clientName: string) => {
-    setSelectedClient(clientName);
-    setFormData({ ...formData, client: clientName });
+    if (clientName === "new-client") {
+      setSelectedClient('');
+      setFormData({ ...formData, client: '' });
+    } else {
+      setSelectedClient(clientName);
+      setFormData({ ...formData, client: clientName });
+    }
   };
 
   const updateTotals = () => {
@@ -592,7 +598,7 @@ const RechnungsGenerator = () => {
                     <SelectValue placeholder="Neuen Kunden anlegen" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Neuen Kunden anlegen</SelectItem>
+                    <SelectItem value="new-client">Neuen Kunden anlegen</SelectItem>
                     {clients.map((client) => (
                       <SelectItem key={client} value={client}>
                         {client}
