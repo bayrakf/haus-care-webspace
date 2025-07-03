@@ -19,6 +19,9 @@ const RechnungsGenerator = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [googleUser, setGoogleUser] = useState<any>(null);
   const [googleAccessToken, setGoogleAccessToken] = useState<string | null>(null);
+  const [tokenClient, setTokenClient] = useState<any>(null);
+  const [clients, setClients] = useState<string[]>([]);
+  const [selectedClient, setSelectedClient] = useState<string>('');
   const [items, setItems] = useState([{ desc: '', qty: 1, price: 0 }]);
   const [formData, setFormData] = useState({
     company: '',
@@ -33,6 +36,13 @@ const RechnungsGenerator = () => {
   const googleSignInRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    // Passwort-Schutz
+    const pass = prompt("Passwort eingeben:");
+    if (pass !== "Teufeline2028!!!") {
+      window.location.href = "/";
+      return;
+    }
+
     // Load Google APIs
     const script1 = document.createElement('script');
     script1.src = 'https://accounts.google.com/gsi/client';
@@ -60,20 +70,42 @@ const RechnungsGenerator = () => {
             { theme: "outline", size: "large", text: "signin_with", width: 220 }
           );
         }
+
+        // Initialize OAuth2 token client
+        const newTokenClient = window.google.accounts.oauth2.initTokenClient({
+          client_id: '571339195704-h27i7flf8fp0l46enksh7hthe7rvp37d.apps.googleusercontent.com',
+          scope: 'https://www.googleapis.com/auth/drive.file',
+          callback: (tokenResponse: any) => {
+            setGoogleAccessToken(tokenResponse.access_token);
+            loadClients();
+            toast({
+              title: "Mit Google Drive verbunden",
+              description: "Sie können jetzt Kunden speichern und laden",
+            });
+          }
+        });
+        setTokenClient(newTokenClient);
       }
     };
 
     return () => {
-      document.head.removeChild(script1);
-      document.head.removeChild(script2);
-      document.head.removeChild(script3);
+      if (document.head.contains(script1)) document.head.removeChild(script1);
+      if (document.head.contains(script2)) document.head.removeChild(script2);
+      if (document.head.contains(script3)) document.head.removeChild(script3);
     };
   }, []);
 
   const handleCredentialResponse = (response: any) => {
     const userObject = parseJwt(response.credential);
     setGoogleUser(userObject);
+    document.getElementById('googleSignInBtn')!.style.display = 'none';
     setIsLoggedIn(true);
+    
+    // Request access token for Drive API
+    if (tokenClient) {
+      tokenClient.requestAccessToken();
+    }
+    
     toast({
       title: "Erfolgreich angemeldet",
       description: `Angemeldet als ${userObject.email}`,
@@ -99,10 +131,198 @@ const RechnungsGenerator = () => {
     setGoogleUser(null);
     setGoogleAccessToken(null);
     setIsLoggedIn(false);
+    setClients([]);
+    setSelectedClient('');
+    if (googleSignInRef.current) {
+      googleSignInRef.current.style.display = 'inline-block';
+    }
     toast({
       title: "Abgemeldet",
       description: "Sie wurden erfolgreich abgemeldet",
     });
+  };
+
+  // Google Drive API functions
+  const findFileId = async (name: string): Promise<string | null> => {
+    if (!googleAccessToken) return null;
+    
+    try {
+      const response = await fetch('https://www.googleapis.com/drive/v3/files?q=' +
+        encodeURIComponent(`name='${name}' and trashed=false`) +
+        '&fields=files(id,name)', {
+          headers: { Authorization: 'Bearer ' + googleAccessToken }
+        });
+      const data = await response.json();
+      return data.files && data.files[0] ? data.files[0].id : null;
+    } catch (error) {
+      console.error('Error finding file:', error);
+      return null;
+    }
+  };
+
+  const saveFileAsPDF = async (name: string, pdfBlob: Blob) => {
+    if (!googleAccessToken) {
+      toast({
+        title: "Fehler",
+        description: "Bitte anmelden!",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      const metadata = { name: name, mimeType: 'application/pdf' };
+      const form = new FormData();
+      form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+      form.append('file', pdfBlob);
+
+      const existingId = await findFileId(name);
+      if (existingId) {
+        await fetch('https://www.googleapis.com/upload/drive/v3/files/' + existingId + '?uploadType=multipart', {
+          method: 'PATCH',
+          headers: { Authorization: 'Bearer ' + googleAccessToken },
+          body: form
+        });
+      } else {
+        await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+          method: 'POST',
+          headers: { Authorization: 'Bearer ' + googleAccessToken },
+          body: form
+        });
+      }
+    } catch (error) {
+      console.error('Error saving file:', error);
+      toast({
+        title: "Fehler",
+        description: "Fehler beim Speichern in Google Drive",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const loadClients = async () => {
+    if (!googleAccessToken) return;
+    
+    try {
+      const response = await fetch('https://www.googleapis.com/drive/v3/files?q=' +
+        encodeURIComponent(`name contains 'Rechnung_' and mimeType='application/pdf' and trashed=false`) +
+        '&fields=files(id,name)', {
+          headers: { Authorization: 'Bearer ' + googleAccessToken }
+        });
+      const data = await response.json();
+      
+      if (data.files) {
+        const clientNames = data.files
+          .map((file: any) => {
+            const match = file.name.match(/^Rechnung_(.+)_RE-/);
+            return match ? match[1] : null;
+          })
+          .filter((name: string | null) => name !== null)
+          .filter((name: string, index: number, self: string[]) => self.indexOf(name) === index);
+        
+        setClients(clientNames);
+      }
+    } catch (error) {
+      console.error('Error loading clients:', error);
+    }
+  };
+
+  const saveClient = async () => {
+    if (!isLoggedIn || !googleAccessToken) {
+      toast({
+        title: "Fehler",
+        description: "Bitte zuerst anmelden!",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!formData.client) {
+      toast({
+        title: "Fehler",
+        description: "Bitte Kundennamen eingeben",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      const pdfBlob = await generatePDF({ saveOnly: true });
+      if (pdfBlob) {
+        const invoiceNumber = formData.invoiceNumber || getNextInvoiceNumber();
+        const pdfName = `Rechnung_${formData.client}_${invoiceNumber}.pdf`;
+        await saveFileAsPDF(pdfName, pdfBlob);
+        
+        toast({
+          title: "Erfolg",
+          description: "Kunde gespeichert (PDF in Google Drive)!",
+        });
+        
+        // Reload clients list
+        loadClients();
+      }
+    } catch (error) {
+      console.error('Error saving client:', error);
+      toast({
+        title: "Fehler",
+        description: "Fehler beim Speichern des Kunden",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const deleteClient = async () => {
+    if (!selectedClient || !googleAccessToken) {
+      toast({
+        title: "Fehler",
+        description: "Bitte Kunden auswählen",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!confirm(`Alle Rechnungen für Kunde "${selectedClient}" löschen?`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch('https://www.googleapis.com/drive/v3/files?q=' +
+        encodeURIComponent(`name contains 'Rechnung_${selectedClient}_' and mimeType='application/pdf' and trashed=false`) +
+        '&fields=files(id,name)', {
+          headers: { Authorization: 'Bearer ' + googleAccessToken }
+        });
+      const data = await response.json();
+      
+      if (data.files) {
+        for (const file of data.files) {
+          await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}`, {
+            method: 'DELETE',
+            headers: { Authorization: 'Bearer ' + googleAccessToken }
+          });
+        }
+      }
+
+      toast({
+        title: "Erfolg",
+        description: `Kunde "${selectedClient}" wurde gelöscht`,
+      });
+      
+      setSelectedClient('');
+      setFormData({ ...formData, client: '' });
+      loadClients();
+    } catch (error) {
+      console.error('Error deleting client:', error);
+      toast({
+        title: "Fehler",
+        description: "Fehler beim Löschen des Kunden",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const fillClientFromSelect = (clientName: string) => {
+    setSelectedClient(clientName);
+    setFormData({ ...formData, client: clientName });
   };
 
   const updateTotals = () => {
@@ -152,11 +372,21 @@ const RechnungsGenerator = () => {
     return `RE-${y}${m}-${String(n).padStart(3, '0')}`;
   };
 
-  const generatePDF = async () => {
+  const generatePDF = async (options?: { saveOnly?: boolean }): Promise<Blob | void> => {
     if (!formData.company || !formData.client || !formData.date) {
       toast({
         title: "Fehler",
         description: "Bitte füllen Sie alle Pflichtfelder aus",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const validItems = items.filter(item => item.desc.trim() && item.price > 0);
+    if (validItems.length === 0) {
+      toast({
+        title: "Fehler", 
+        description: "Mindestens eine Position mit Preis > 0 erforderlich",
         variant: "destructive"
       });
       return;
@@ -175,6 +405,26 @@ const RechnungsGenerator = () => {
     const doc = new jsPDF();
     const invoiceNumber = formData.invoiceNumber || getNextInvoiceNumber();
     const { subtotal, vatAmount, total } = updateTotals();
+
+    // Logo hinzufügen falls vorhanden
+    if (logoPreview) {
+      try {
+        const img = new Image();
+        img.src = logoPreview;
+        await new Promise(resolve => {
+          img.onload = resolve;
+          img.onerror = resolve;
+        });
+        if (img.width > 0) {
+          const aspectRatio = img.height / img.width;
+          const logoWidth = 50;
+          const logoHeight = logoWidth * aspectRatio;
+          doc.addImage(img, 'PNG', 15, 15, logoWidth, logoHeight);
+        }
+      } catch (error) {
+        console.log('Logo could not be added:', error);
+      }
+    }
 
     // Header
     let y = 15;
@@ -198,7 +448,7 @@ const RechnungsGenerator = () => {
 
     // Items table
     const headers = [['Pos', 'Beschreibung', 'Menge', 'Einzelpreis', 'Gesamt']];
-    const rows = items.map((item, i) => [
+    const rows = validItems.map((item, i) => [
       i + 1,
       item.desc,
       item.qty,
@@ -212,12 +462,20 @@ const RechnungsGenerator = () => {
       body: rows,
       theme: 'grid',
       headStyles: { fillColor: [52, 152, 219], textColor: 255, fontStyle: 'bold' },
-      styles: { fontSize: 10, cellPadding: 4 }
+      styles: { fontSize: 10, cellPadding: 4 },
+      columnStyles: { 
+        0: { cellWidth: 15 }, 
+        1: { cellWidth: 80 }, 
+        2: { cellWidth: 20 }, 
+        3: { cellWidth: 30 }, 
+        4: { cellWidth: 30 } 
+      }
     });
 
     // Summary
     y = doc.lastAutoTable.finalY + 10;
     doc.setFontSize(12);
+    doc.setFont('helvetica', 'normal');
     doc.text(`Zwischensumme: ${subtotal.toFixed(2).replace('.', ',')} €`, 205, y, { align: 'right' });
     y += 7;
     doc.text(`MwSt (${formData.vatRate}%): ${vatAmount.toFixed(2).replace('.', ',')} €`, 205, y, { align: 'right' });
@@ -229,14 +487,22 @@ const RechnungsGenerator = () => {
     if (formData.footerNote) {
       y += 15;
       doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
       doc.text(formData.footerNote, 15, y);
     }
 
-    doc.save(`Rechnung_${invoiceNumber}.pdf`);
-    toast({
-      title: "Erfolg",
-      description: "Rechnung wurde erstellt",
-    });
+    if (options?.saveOnly) {
+      return new Promise(resolve => {
+        const pdfBlob = doc.output('blob');
+        resolve(pdfBlob);
+      });
+    } else {
+      doc.save(`Rechnung_${invoiceNumber}.pdf`);
+      toast({
+        title: "Erfolg",
+        description: "Rechnung wurde erstellt",
+      });
+    }
   };
 
   const totals = updateTotals();
@@ -313,8 +579,30 @@ const RechnungsGenerator = () => {
                   className="mt-1"
                 />
               </div>
+              
+              {/* Client Selection */}
               <div>
-                <Label htmlFor="client" className="text-destructive">Kunde: *</Label>
+                <Label htmlFor="clientSelect" className="text-destructive">Kunde auswählen: *</Label>
+                <Select
+                  value={selectedClient}
+                  onValueChange={fillClientFromSelect}
+                  disabled={!isLoggedIn}
+                >
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="Neuen Kunden anlegen" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Neuen Kunden anlegen</SelectItem>
+                    {clients.map((client) => (
+                      <SelectItem key={client} value={client}>
+                        {client}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div>
                 <Input
                   id="client"
                   placeholder="Kundenname eingeben"
@@ -323,6 +611,25 @@ const RechnungsGenerator = () => {
                   required
                   className="mt-1"
                 />
+              </div>
+              
+              {/* Client Actions */}
+              <div className="flex gap-4">
+                <Button 
+                  onClick={saveClient} 
+                  disabled={!isLoggedIn}
+                  className="flex-1"
+                >
+                  💾 Daten speichern
+                </Button>
+                <Button 
+                  onClick={deleteClient} 
+                  disabled={!isLoggedIn || !selectedClient}
+                  variant="destructive"
+                  className="flex-1"
+                >
+                  🗑️ Kunde löschen
+                </Button>
               </div>
             </div>
 
@@ -450,7 +757,7 @@ const RechnungsGenerator = () => {
             </div>
 
             {/* Generate PDF Button */}
-            <Button onClick={generatePDF} className="w-full" size="lg">
+            <Button onClick={() => generatePDF()} className="w-full" size="lg">
               📄 Professionelle PDF erstellen
             </Button>
           </CardContent>
