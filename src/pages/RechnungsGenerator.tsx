@@ -5,7 +5,30 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { 
+  FileText, 
+  Upload, 
+  Save, 
+  Trash2, 
+  Download, 
+  Plus, 
+  Minus, 
+  Calculator,
+  Building2,
+  User,
+  Calendar,
+  Hash,
+  Percent,
+  FileIcon,
+  Shield,
+  LogOut,
+  CheckCircle,
+  AlertCircle,
+  Euro
+} from 'lucide-react';
 
 declare global {
   interface Window {
@@ -514,260 +537,384 @@ const RechnungsGenerator = () => {
   const totals = updateTotals();
 
   return (
-    <div className="min-h-screen bg-background py-12">
-      <div className="container mx-auto px-4">
-        <Card className="max-w-4xl mx-auto">
-          <CardHeader>
-            <CardTitle className="text-3xl font-bold text-center text-primary">
-              Professioneller Rechnungs-Generator
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Google Sign In */}
-            <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
-              {!isLoggedIn ? (
-                <div className="flex items-center gap-4">
-                  <div ref={googleSignInRef}></div>
-                  <span className="text-muted-foreground">🔓 Nicht angemeldet</span>
-                </div>
-              ) : (
-                <div className="flex items-center justify-between w-full">
-                  <span className="text-foreground">🔐 Angemeldet als {googleUser?.email}</span>
-                  <Button onClick={signOut} variant="destructive">
-                    🚪 Abmelden
-                  </Button>
-                </div>
-              )}
-            </div>
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/30 py-8 px-4">
+      <div className="container mx-auto max-w-6xl">
+        {/* Header Section */}
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-primary rounded-2xl mb-4 shadow-elegant">
+            <Calculator className="w-8 h-8 text-primary-foreground" />
+          </div>
+          <h1 className="text-4xl font-bold bg-gradient-primary bg-clip-text text-transparent mb-2">
+            Professioneller Rechnungs-Generator
+          </h1>
+          <p className="text-muted-foreground text-lg">
+            Erstellen Sie professionelle Rechnungen mit Google Drive Integration
+          </p>
+        </div>
 
-            {/* Logo and Date */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="logoUpload">Logo (optional):</Label>
-                <Input
-                  id="logoUpload"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleLogoUpload}
-                  className="mt-1"
-                />
-                {logoPreview && (
-                  <img
-                    src={logoPreview}
-                    alt="Logo Vorschau"
-                    className="mt-2 max-w-32 max-h-16 object-contain"
-                  />
-                )}
-              </div>
-              <div>
-                <Label htmlFor="date" className="text-destructive">Rechnungsdatum: *</Label>
-                <Input
-                  id="date"
-                  type="date"
-                  value={formData.date}
-                  onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                  required
-                  className="mt-1"
-                />
-              </div>
-            </div>
-
-            {/* Company and Client */}
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="company" className="text-destructive">Dein Name / Firma: *</Label>
-                <Input
-                  id="company"
-                  placeholder="Max Mustermann GmbH"
-                  value={formData.company}
-                  onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-                  required
-                  className="mt-1"
-                />
-              </div>
-              
-              {/* Client Selection */}
-              <div>
-                <Label htmlFor="clientSelect" className="text-destructive">Kunde auswählen: *</Label>
-                <Select
-                  value={selectedClient}
-                  onValueChange={fillClientFromSelect}
-                  disabled={!isLoggedIn}
-                >
-                  <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="Neuen Kunden anlegen" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="new-client">Neuen Kunden anlegen</SelectItem>
-                    {clients.map((client) => (
-                      <SelectItem key={client} value={client}>
-                        {client}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div>
-                <Input
-                  id="client"
-                  placeholder="Kundenname eingeben"
-                  value={formData.client}
-                  onChange={(e) => setFormData({ ...formData, client: e.target.value })}
-                  required
-                  className="mt-1"
-                />
-              </div>
-              
-              {/* Client Actions */}
-              <div className="flex gap-4">
-                <Button 
-                  onClick={saveClient} 
-                  disabled={!isLoggedIn}
-                  className="flex-1"
-                >
-                  💾 Daten speichern
-                </Button>
-                <Button 
-                  onClick={deleteClient} 
-                  disabled={!isLoggedIn || !selectedClient}
-                  variant="destructive"
-                  className="flex-1"
-                >
-                  🗑️ Kunde löschen
-                </Button>
-              </div>
-            </div>
-
-            {/* Invoice Number and VAT */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="invoiceNumber">Rechnungsnummer (optional):</Label>
-                <Input
-                  id="invoiceNumber"
-                  placeholder="Wird automatisch generiert"
-                  value={formData.invoiceNumber}
-                  onChange={(e) => setFormData({ ...formData, invoiceNumber: e.target.value })}
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <Label htmlFor="vatRate">Mehrwertsteuer (%):</Label>
-                <Input
-                  id="vatRate"
-                  type="number"
-                  step="0.1"
-                  value={formData.vatRate}
-                  onChange={(e) => setFormData({ ...formData, vatRate: parseFloat(e.target.value) || 20 })}
-                  className="mt-1"
-                />
-              </div>
-            </div>
-
-            {/* Items Table */}
-            <div>
-              <h3 className="text-xl font-semibold mb-4">Positionen</h3>
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse border border-border">
-                  <thead>
-                    <tr className="bg-muted">
-                      <th className="border border-border p-3 text-left">Beschreibung *</th>
-                      <th className="border border-border p-3 text-left">Menge</th>
-                      <th className="border border-border p-3 text-left">Preis (€) *</th>
-                      <th className="border border-border p-3 text-left">Gesamt</th>
-                      <th className="border border-border p-3 text-left">Aktion</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {items.map((item, index) => (
-                      <tr key={index} className="hover:bg-muted/50">
-                        <td className="border border-border p-2">
-                          <Input
-                            value={item.desc}
-                            onChange={(e) => updateItem(index, 'desc', e.target.value)}
-                            placeholder="Beschreibung eingeben"
-                            required
-                          />
-                        </td>
-                        <td className="border border-border p-2">
-                          <Input
-                            type="number"
-                            min="1"
-                            value={item.qty}
-                            onChange={(e) => updateItem(index, 'qty', parseInt(e.target.value) || 1)}
-                          />
-                        </td>
-                        <td className="border border-border p-2">
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={item.price}
-                            onChange={(e) => updateItem(index, 'price', parseFloat(e.target.value) || 0)}
-                            required
-                          />
-                        </td>
-                        <td className="border border-border p-2 font-medium">
-                          {(item.qty * item.price).toFixed(2)} €
-                        </td>
-                        <td className="border border-border p-2">
-                          <Button
-                            onClick={() => removeRow(index)}
-                            variant="destructive"
-                            size="sm"
-                          >
-                            ×
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <Button onClick={addRow} className="mt-4">
-                + Position hinzufügen
-              </Button>
-            </div>
-
-            {/* Summary */}
-            <Card className="bg-muted/50 border-l-4 border-l-primary">
-              <CardHeader>
-                <CardTitle className="text-lg">Zusammenfassung</CardTitle>
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Left Column - Authentication & Client Management */}
+          <div className="lg:col-span-1 space-y-6">
+            {/* Authentication Card */}
+            <Card className="border-0 shadow-card bg-card/50 backdrop-blur-sm">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Shield className="w-5 h-5 text-primary" />
+                  Authentifizierung
+                </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-2">
-                <div className="flex justify-between">
-                  <span>Zwischensumme:</span>
-                  <span className="font-medium">{totals.subtotal.toFixed(2)} €</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>MwSt. ({formData.vatRate}%):</span>
-                  <span className="font-medium">{totals.vatAmount.toFixed(2)} €</span>
-                </div>
-                <div className="flex justify-between text-lg font-bold border-t pt-2">
-                  <span>Gesamtsumme:</span>
-                  <span>{totals.total.toFixed(2)} €</span>
-                </div>
+              <CardContent>
+                {!isLoggedIn ? (
+                  <div className="space-y-4">
+                    <div className="p-4 bg-muted/50 rounded-lg border border-border/50">
+                      <div className="flex items-center gap-3 mb-3">
+                        <AlertCircle className="w-5 h-5 text-accent" />
+                        <span className="text-sm font-medium">Nicht angemeldet</span>
+                      </div>
+                      <div ref={googleSignInRef} className="w-full"></div>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Melden Sie sich an, um Kunden zu speichern und zu verwalten.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="p-4 bg-secondary/10 rounded-lg border border-secondary/20">
+                      <div className="flex items-center gap-3 mb-3">
+                        <CheckCircle className="w-5 h-5 text-secondary" />
+                        <span className="text-sm font-medium">Verbunden</span>
+                      </div>
+                      <p className="text-sm text-muted-foreground mb-3">
+                        {googleUser?.email}
+                      </p>
+                      <Button onClick={signOut} variant="outline" size="sm" className="w-full">
+                        <LogOut className="w-4 h-4 mr-2" />
+                        Abmelden
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
-            {/* Footer Note */}
-            <div>
-              <Label htmlFor="footerNote">Fußtext / Hinweise:</Label>
-              <Textarea
-                id="footerNote"
-                rows={3}
-                placeholder="Bankverbindung, Zahlungsbedingungen..."
-                value={formData.footerNote}
-                onChange={(e) => setFormData({ ...formData, footerNote: e.target.value })}
-                className="mt-1"
-              />
-            </div>
+            {/* Client Management Card */}
+            <Card className="border-0 shadow-card bg-card/50 backdrop-blur-sm">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <User className="w-5 h-5 text-primary" />
+                  Kundenverwaltung
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label className="text-sm font-medium mb-2 block">Kunde auswählen</Label>
+                  <Select
+                    value={selectedClient}
+                    onValueChange={fillClientFromSelect}
+                    disabled={!isLoggedIn}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Neuen Kunden anlegen" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="new-client">Neuen Kunden anlegen</SelectItem>
+                      {clients.map((client) => (
+                        <SelectItem key={client} value={client}>
+                          {client}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div>
+                  <Label className="text-sm font-medium mb-2 block">
+                    Kundenname <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    placeholder="z.B. Max Mustermann GmbH"
+                    value={formData.client}
+                    onChange={(e) => setFormData({ ...formData, client: e.target.value })}
+                    className="w-full"
+                  />
+                </div>
+                
+                <div className="flex gap-2">
+                  <Button 
+                    onClick={saveClient} 
+                    disabled={!isLoggedIn || !formData.client}
+                    size="sm"
+                    className="flex-1"
+                  >
+                    <Save className="w-4 h-4 mr-2" />
+                    Speichern
+                  </Button>
+                  <Button 
+                    onClick={deleteClient} 
+                    disabled={!isLoggedIn || !selectedClient}
+                    variant="destructive"
+                    size="sm"
+                    className="flex-1"
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Löschen
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
-            {/* Generate PDF Button */}
-            <Button onClick={() => generatePDF()} className="w-full" size="lg">
-              📄 Professionelle PDF erstellen
-            </Button>
-          </CardContent>
-        </Card>
+          {/* Right Column - Invoice Form */}
+          <div className="lg:col-span-2">
+            <Card className="border-0 shadow-card bg-card/50 backdrop-blur-sm">
+              <CardHeader className="border-b border-border/50">
+                <CardTitle className="flex items-center gap-2 text-xl">
+                  <FileText className="w-6 h-6 text-primary" />
+                  Rechnungsdetails
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-6 space-y-6">
+
+                {/* Basic Information Section */}
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Logo Upload */}
+                    <div className="space-y-2">
+                      <Label className="flex items-center gap-2 text-sm font-medium">
+                        <Upload className="w-4 h-4" />
+                        Firmenlogo (optional)
+                      </Label>
+                      <div className="relative">
+                        <Input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleLogoUpload}
+                          className="cursor-pointer file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
+                        />
+                      </div>
+                      {logoPreview && (
+                        <div className="mt-3 p-3 bg-muted/50 rounded-lg border border-border/50">
+                          <img
+                            src={logoPreview}
+                            alt="Logo Vorschau"
+                            className="max-w-32 max-h-16 object-contain mx-auto"
+                          />
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Invoice Date */}
+                    <div className="space-y-2">
+                      <Label className="flex items-center gap-2 text-sm font-medium">
+                        <Calendar className="w-4 h-4" />
+                        Rechnungsdatum <span className="text-destructive">*</span>
+                      </Label>
+                      <Input
+                        type="date"
+                        value={formData.date}
+                        onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                        className="w-full"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  {/* Company Information */}
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-2 text-sm font-medium">
+                      <Building2 className="w-4 h-4" />
+                      Ihr Firmenname <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      placeholder="z.B. Ihre Firma GmbH"
+                      value={formData.company}
+                      onChange={(e) => setFormData({ ...formData, company: e.target.value })}
+                      className="w-full"
+                      required
+                    />
+                  </div>
+
+                  {/* Invoice Details */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <Label className="flex items-center gap-2 text-sm font-medium">
+                        <Hash className="w-4 h-4" />
+                        Rechnungsnummer (optional)
+                      </Label>
+                      <Input
+                        placeholder="Wird automatisch generiert"
+                        value={formData.invoiceNumber}
+                        onChange={(e) => setFormData({ ...formData, invoiceNumber: e.target.value })}
+                        className="w-full"
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label className="flex items-center gap-2 text-sm font-medium">
+                        <Percent className="w-4 h-4" />
+                        Mehrwertsteuer (%)
+                      </Label>
+                      <Input
+                        type="number"
+                        step="0.1"
+                        value={formData.vatRate}
+                        onChange={(e) => setFormData({ ...formData, vatRate: parseFloat(e.target.value) || 20 })}
+                        className="w-full"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Invoice Items Section */}
+                <div className="space-y-4">
+                  <h3 className="text-xl font-semibold flex items-center gap-2">
+                    <FileIcon className="w-5 h-5 text-primary" />
+                    Rechnungspositionen
+                  </h3>
+                  
+                  <div className="bg-muted/30 rounded-lg p-1 border border-border/50">
+                    <div className="space-y-3">
+                      {items.map((item, index) => (
+                        <div key={index} className="bg-card/80 rounded-lg p-4 border border-border/50 shadow-sm">
+                          <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+                            {/* Description */}
+                            <div className="md:col-span-5">
+                              <Label className="text-xs text-muted-foreground mb-1 block">
+                                Beschreibung <span className="text-destructive">*</span>
+                              </Label>
+                              <Input
+                                value={item.desc}
+                                onChange={(e) => updateItem(index, 'desc', e.target.value)}
+                                placeholder="Leistungsbeschreibung eingeben..."
+                                className="w-full"
+                                required
+                              />
+                            </div>
+                            
+                            {/* Quantity */}
+                            <div className="md:col-span-2">
+                              <Label className="text-xs text-muted-foreground mb-1 block">Menge</Label>
+                              <Input
+                                type="number"
+                                min="1"
+                                value={item.qty}
+                                onChange={(e) => updateItem(index, 'qty', parseInt(e.target.value) || 1)}
+                                className="w-full text-center"
+                              />
+                            </div>
+                            
+                            {/* Price */}
+                            <div className="md:col-span-2">
+                              <Label className="text-xs text-muted-foreground mb-1 block">
+                                Preis (€) <span className="text-destructive">*</span>
+                              </Label>
+                              <div className="relative">
+                                <Euro className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  value={item.price}
+                                  onChange={(e) => updateItem(index, 'price', parseFloat(e.target.value) || 0)}
+                                  className="pl-10 w-full text-right"
+                                  required
+                                />
+                              </div>
+                            </div>
+                            
+                            {/* Total */}
+                            <div className="md:col-span-2">
+                              <Label className="text-xs text-muted-foreground mb-1 block">Gesamt</Label>
+                              <div className="bg-muted/50 border border-border rounded-md px-3 py-2 text-right font-medium">
+                                {(item.qty * item.price).toFixed(2)} €
+                              </div>
+                            </div>
+                            
+                            {/* Action */}
+                            <div className="md:col-span-1 flex justify-center">
+                              <Button
+                                onClick={() => removeRow(index)}
+                                variant="ghost"
+                                size="sm"
+                                className="text-destructive hover:text-destructive hover:bg-destructive/10 w-8 h-8 p-0"
+                              >
+                                <Minus className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  <Button onClick={addRow} className="w-full" variant="outline">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Neue Position hinzufügen
+                  </Button>
+                </div>
+
+                <Separator />
+
+                {/* Invoice Summary */}
+                <div className="bg-gradient-to-r from-primary/5 to-secondary/5 rounded-xl p-6 border border-primary/20">
+                  <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                    <Calculator className="w-5 h-5 text-primary" />
+                    Rechnungssumme
+                  </h3>
+                  
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center py-2">
+                      <span className="text-muted-foreground">Zwischensumme:</span>
+                      <span className="font-semibold text-lg">{totals.subtotal.toFixed(2)} €</span>
+                    </div>
+                    
+                    <div className="flex justify-between items-center py-2">
+                      <span className="text-muted-foreground">
+                        MwSt. ({formData.vatRate}%):
+                      </span>
+                      <span className="font-semibold text-lg">{totals.vatAmount.toFixed(2)} €</span>
+                    </div>
+                    
+                    <Separator />
+                    
+                    <div className="flex justify-between items-center py-3 bg-primary/10 rounded-lg px-4">
+                      <span className="text-xl font-bold text-primary">Gesamtsumme:</span>
+                      <span className="text-2xl font-bold text-primary">
+                        {totals.total.toFixed(2)} €
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer Notes */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Zusätzliche Informationen</Label>
+                  <Textarea
+                    rows={4}
+                    placeholder="Bankverbindung, Zahlungsbedingungen, Anmerkungen..."
+                    value={formData.footerNote}
+                    onChange={(e) => setFormData({ ...formData, footerNote: e.target.value })}
+                    className="resize-none"
+                  />
+                </div>
+
+                {/* Generate PDF Button */}
+                <div className="pt-4">
+                  <Button 
+                    onClick={() => generatePDF()} 
+                    className="w-full h-14 text-lg font-semibold bg-gradient-primary hover:opacity-90 transition-opacity shadow-elegant"
+                    size="lg"
+                  >
+                    <Download className="w-6 h-6 mr-3" />
+                    Professionelle PDF-Rechnung erstellen
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       </div>
     </div>
   );
