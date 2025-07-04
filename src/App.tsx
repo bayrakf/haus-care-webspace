@@ -20,9 +20,8 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <div className="min-h-screen flex flex-col">
-          <Navigation />
-          <main className="flex-1 pt-20">
+        <Navigation />
+        <main>
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/leistungen" element={<ServicesPage />} />
@@ -32,9 +31,8 @@ const App = () => (
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
-          </main>
-          <Footer />
-        </div>
+        </main>
+        <Footer />
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
